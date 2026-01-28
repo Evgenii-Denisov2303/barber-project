@@ -1,0 +1,11 @@
+{
+  "name": "istanbul-booking",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev:web": "npm --workspace apps/web run dev",
+    "dev:mobile": "npm --workspace apps/mobile run start",
+    "lint": "npm -ws run lint",
+    "typecheck": "npm -ws run typecheck"
+  }
+}

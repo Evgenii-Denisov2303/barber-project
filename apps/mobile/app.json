@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Istanbul",
+    "slug": "istanbul-booking",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#f3efe7"
+    },
+    "assetBundlePatterns": ["**/*"]
+  }
+}
