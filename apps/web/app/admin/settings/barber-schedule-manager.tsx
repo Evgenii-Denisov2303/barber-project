@@ -163,7 +163,7 @@ export function BarberScheduleManager() {
             return (
               <div key={day.id} className="list-item">
                 <strong>{day.label}</strong>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="form-row">
                   <input
                     type="time"
                     value={record?.start_time ?? ''}
@@ -181,7 +181,7 @@ export function BarberScheduleManager() {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div className="action-row">
         <button className="button" onClick={save}>
           Сохранить график
         </button>

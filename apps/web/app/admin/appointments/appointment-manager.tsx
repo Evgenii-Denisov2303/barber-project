@@ -280,7 +280,7 @@ export function AppointmentManager({ initial }: Props) {
       </div>
 
       <strong>Управление статусами</strong>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div className="form-row">
         <input
           placeholder="Поиск по услуге или мастеру"
           value={search}
@@ -323,7 +323,7 @@ export function AppointmentManager({ initial }: Props) {
             <p>Мастер: {item.barber}</p>
             <p>Статус: {formatStatus(item.status)}</p>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="action-row">
             <button
               className="button secondary"
               onClick={() => updateStatus(item.id, 'confirmed')}
@@ -402,7 +402,7 @@ export function AppointmentManager({ initial }: Props) {
               </option>
             ))}
           </select>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="form-row">
             <input
               type="date"
               value={newDate}

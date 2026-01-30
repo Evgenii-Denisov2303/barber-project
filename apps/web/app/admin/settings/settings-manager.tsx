@@ -237,7 +237,7 @@ export function SettingsManager() {
             return (
               <div key={day.id} className="list-item">
                 <strong>{day.label}</strong>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="form-row">
                   <input
                     type="time"
                     value={item.open_time}
@@ -359,7 +359,7 @@ export function SettingsManager() {
           </button>
           <div style={{ display: 'grid', gap: 8 }}>
             <strong>Тест уведомлений</strong>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <div className="form-row">
               <button
                 className="button secondary"
                 onClick={() => sendTestNotification('telegram')}

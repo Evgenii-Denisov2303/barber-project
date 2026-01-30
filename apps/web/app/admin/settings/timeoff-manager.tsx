@@ -120,11 +120,11 @@ export function TimeOffManager() {
 
       <div className="card" style={{ display: 'grid', gap: 8 }}>
         <strong>Добавить перерыв</strong>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="form-row">
           <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="form-row">
           <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
           <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
         </div>

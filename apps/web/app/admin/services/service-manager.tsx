@@ -138,7 +138,7 @@ export function ServiceManager({ initial }: Props) {
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div className="form-row">
           <input
             style={inputStyle}
             placeholder="Длительность, мин"
@@ -169,7 +169,7 @@ export function ServiceManager({ initial }: Props) {
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                 />
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div className="form-row">
                   <input
                     style={inputStyle}
                     value={editDuration}
@@ -181,7 +181,7 @@ export function ServiceManager({ initial }: Props) {
                     onChange={(e) => setEditPrice(e.target.value)}
                   />
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="action-row">
                   <button className="button secondary" onClick={saveEdit}>
                     Сохранить
                   </button>
@@ -198,7 +198,7 @@ export function ServiceManager({ initial }: Props) {
                     {item.durationMin} мин · {item.price} ₽
                   </p>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="action-row">
                   <button
                     className="button secondary"
                     onClick={() => startEdit(item)}

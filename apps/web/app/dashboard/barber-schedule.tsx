@@ -129,7 +129,7 @@ export function BarberSchedule() {
                 <p>{item.service}</p>
               </div>
               <div style={{ display: 'grid', gap: 8 }}>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="action-row">
                   <button
                     className="button secondary"
                     onClick={() => updateStatus(item.id, 'confirmed')}
@@ -143,7 +143,7 @@ export function BarberSchedule() {
                     Отменить
                   </button>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="form-row">
                   <input
                     type="date"
                     value={rescheduleInputs[item.id]?.date ?? item.date ?? getToday()}
