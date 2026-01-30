@@ -8,13 +8,14 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { palette } from '../theme';
 import { useBooking } from '../state/booking';
 import { useAuth } from '../state/auth';
-import { createAppointment } from '../api';
+import { createAppointment, rescheduleAppointment } from '../api';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Confirm'>;
 
 export function ConfirmScreen({ navigation }: Props) {
-  const { draft, createBooking } = useBooking();
+  const { draft, createBooking, rescheduleTarget, clearReschedule, applyReschedule } = useBooking();
   const { session } = useAuth();
+  const isReschedule = Boolean(rescheduleTarget);
   const serviceName = draft.serviceName ?? '-';
   const barberName = draft.barberName ?? '-';
   const requiresAuth = Boolean(
@@ -31,7 +32,9 @@ export function ConfirmScreen({ navigation }: Props) {
 
   return (
     <Screen>
-      <Text style={styles.title}>Подтверждение записи</Text>
+      <Text style={styles.title}>
+        {isReschedule ? 'Перенос записи' : 'Подтверждение записи'}
+      </Text>
       <View style={styles.card}>
         <View style={styles.row}>
           <Text style={styles.label}>Услуга</Text>
@@ -53,17 +56,31 @@ export function ConfirmScreen({ navigation }: Props) {
 
       <View style={styles.footer}>
         <PrimaryButton
-          label="Подтвердить запись"
+          label={isReschedule ? 'Перенести запись' : 'Подтвердить запись'}
           onPress={async () => {
             if (!canConfirm) return;
             const startAt = `${draft.date}T${draft.slot}:00+03:00`;
+            if (isReschedule && rescheduleTarget) {
+              if (session) {
+                const result = await rescheduleAppointment(rescheduleTarget.id, startAt);
+            if (!result.ok) {
+              setError(formatRpcError(result.error ?? 'Ошибка переноса'));
+              return;
+            }
+              } else {
+                applyReschedule(rescheduleTarget.id, draft.date!, draft.slot!);
+              }
+              clearReschedule();
+              navigation.navigate('MyBookings');
+              return;
+            }
             const result = await createAppointment({
               serviceId: draft.serviceId!,
               barberId: draft.barberId!,
               startAt
             });
             if (!result.ok) {
-              setError(result.error ?? 'Ошибка записи');
+              setError(formatRpcError(result.error ?? 'Ошибка записи'));
               return;
             }
             createBooking(result.id);
@@ -123,3 +140,19 @@ const styles = StyleSheet.create({
     color: '#a93226'
   }
 });
+
+function formatRpcError(message: string) {
+  if (message.includes('slot_taken')) {
+    return 'Слот уже занят, выберите другое время';
+  }
+  if (message.includes('outside_working_hours')) {
+    return 'Время вне рабочего графика';
+  }
+  if (message.includes('barber_unavailable')) {
+    return 'У мастера выходной или перерыв';
+  }
+  if (message.includes('service_not_found')) {
+    return 'Услуга не найдена';
+  }
+  return message;
+}

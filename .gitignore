@@ -11,6 +11,8 @@ coverage/
 *.log
 .DS_Store
 
+.expo/
+
 android/.gradle/
 android/app/build/
 ios/Pods/

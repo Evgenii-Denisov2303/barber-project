@@ -17,6 +17,7 @@ import { palette } from './src/theme';
 import { AuthProvider, useAuth } from './src/state/auth';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
+import { BookingDetailScreen } from './src/screens/BookingDetailScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -94,6 +95,11 @@ function RootNavigator() {
               name="MyBookings"
               component={MyBookingsScreen}
               options={{ title: 'Мои записи' }}
+            />
+            <Stack.Screen
+              name="BookingDetail"
+              component={BookingDetailScreen}
+              options={{ title: 'Запись' }}
             />
             <Stack.Screen
               name="Profile"

@@ -7,6 +7,8 @@ import {
 
 type RemoteBooking = {
   id: string;
+  serviceId: string;
+  barberId: string;
   date: string;
   time: string;
   serviceName: string;
@@ -40,8 +42,23 @@ export async function listServices() {
   }));
 }
 
-export async function listBarbers() {
+export async function listBarbers(serviceId?: string) {
   if (!hasSupabase) return demoBarbers;
+  if (serviceId) {
+    const { data, error } = await supabase!
+      .from('barbers')
+      .select('id, rating, bio, photo_url, is_active, users(full_name), barber_services!inner(service_id)')
+      .eq('is_active', true)
+      .eq('barber_services.service_id', serviceId);
+    if (error || !data) return demoBarbers;
+    return data.map((item) => ({
+      id: item.id,
+      name: item.users?.full_name ?? 'Мастер',
+      rating: item.rating ?? 4.7,
+      tag: item.bio ?? 'Барбер',
+      photoUrl: item.photo_url ?? ''
+    }));
+  }
   const { data, error } = await supabase!
     .from('barbers')
     .select('id, rating, bio, photo_url, is_active, users(full_name)')
@@ -97,13 +114,15 @@ export async function listMyAppointments(): Promise<RemoteBooking[] | null> {
 
   const { data, error } = await supabase!
     .from('appointments')
-    .select('id, start_at, status, services(name), barbers(users(full_name))')
+    .select('id, service_id, barber_id, start_at, status, services(name), barbers(users(full_name))')
     .eq('client_id', userId)
     .order('start_at', { ascending: true });
   if (error || !data) return null;
 
   return data.map((item) => ({
     id: item.id,
+    serviceId: item.service_id,
+    barberId: item.barber_id,
     date: item.start_at ? item.start_at.slice(0, 10) : '',
     time: item.start_at ? item.start_at.slice(11, 16) : '',
     serviceName: item.services?.name ?? 'Услуга',
@@ -120,6 +139,17 @@ export async function cancelAppointment(id: string) {
     .eq('id', id);
   if (error) return { ok: false, error: error.message };
   void notifyTelegram(id, 'cancelled');
+  return { ok: true };
+}
+
+export async function rescheduleAppointment(id: string, newStartAt: string) {
+  if (!hasSupabase) return { ok: true };
+  const { error } = await supabase!.rpc('rpc_reschedule_appointment', {
+    p_appointment_id: id,
+    p_new_start_at: newStartAt
+  });
+  if (error) return { ok: false, error: error.message };
+  void notifyTelegram(id, 'rescheduled');
   return { ok: true };
 }
 

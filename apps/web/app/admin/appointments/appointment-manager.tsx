@@ -12,6 +12,7 @@ type AppointmentItem = {
   client: string;
   service: string;
   barber: string;
+  barberId: string;
   status: string;
 };
 
@@ -38,10 +39,17 @@ export function AppointmentManager({ initial }: Props) {
   const [selectedService, setSelectedService] = useState('');
   const [selectedBarber, setSelectedBarber] = useState('');
   const [selectedDate, setSelectedDate] = useState(getToday());
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [filterDate, setFilterDate] = useState('');
+  const [filterBarber, setFilterBarber] = useState('');
   const [slots, setSlots] = useState<string[]>([]);
   const [selectedAppointment, setSelectedAppointment] = useState('');
   const [newDate, setNewDate] = useState(getToday());
   const [newTime, setNewTime] = useState('');
+  const [createDate, setCreateDate] = useState(getToday());
+  const [createTime, setCreateTime] = useState('');
+  const [clientEmail, setClientEmail] = useState('');
 
   useEffect(() => {
     setItems(initial);
@@ -51,7 +59,7 @@ export function AppointmentManager({ initial }: Props) {
     if (!supabaseBrowser) return;
     const { data } = await supabaseBrowser
       .from('appointments')
-      .select('id, start_at, status, services(name), barbers(users(full_name))')
+      .select('id, start_at, status, barber_id, services(name), barbers(id, users(full_name))')
       .order('start_at', { ascending: true })
       .limit(20);
     if (!data) return;
@@ -63,7 +71,8 @@ export function AppointmentManager({ initial }: Props) {
         client: 'Клиент',
         service: item.services?.name ?? 'Услуга',
         barber: item.barbers?.users?.full_name ?? 'Мастер',
-        status: item.status === 'confirmed' ? 'подтверждено' : item.status
+        barberId: item.barbers?.id ?? item.barber_id ?? '',
+        status: item.status
       }))
     );
   };
@@ -125,6 +134,45 @@ export function AppointmentManager({ initial }: Props) {
     refresh();
   };
 
+  const createAppointment = async () => {
+    if (!supabaseBrowser || !selectedService || !selectedBarber || !createDate || !createTime) {
+      setStatus('Заполните услугу, мастера и время');
+      return;
+    }
+    setStatus(null);
+    let clientId: string | null = null;
+    if (clientEmail.trim()) {
+      const { data: userData, error: userError } = await supabaseBrowser
+        .from('users')
+        .select('id')
+        .eq('email', clientEmail.trim())
+        .single();
+      if (userError || !userData) {
+        setStatus('Клиент не найден по email');
+        return;
+      }
+      clientId = userData.id;
+    }
+    const payload = `${createDate}T${createTime}:00+03:00`;
+    const { data, error } = await supabaseBrowser.rpc('rpc_create_appointment', {
+      p_service_id: selectedService,
+      p_barber_id: selectedBarber,
+      p_start_at: payload,
+      p_client_id: clientId ?? undefined
+    });
+    if (error) {
+      setStatus(formatRpcError(error.message));
+      return;
+    }
+    if (data) {
+      void notifyTelegram(data, 'created');
+    }
+    setStatus('Запись создана');
+    setCreateTime('');
+    setClientEmail('');
+    refresh();
+  };
+
   const checkSlots = async () => {
     if (!supabaseBrowser || !selectedService || !selectedBarber || !selectedDate) {
       setStatus('Выберите услугу, мастера и дату');
@@ -165,14 +213,115 @@ export function AppointmentManager({ initial }: Props) {
     return <AuthPanel />;
   }
 
+  const filteredItems = items.filter((item) => {
+    const matchesStatus =
+      statusFilter === 'all' ? true : item.status === statusFilter;
+    const term = search.trim().toLowerCase();
+    const matchesSearch = term
+      ? item.service.toLowerCase().includes(term) || item.barber.toLowerCase().includes(term)
+      : true;
+    const matchesDate = filterDate ? item.date === filterDate : true;
+    const matchesBarber = filterBarber ? item.barberId === filterBarber : true;
+    return matchesStatus && matchesSearch && matchesDate && matchesBarber;
+  });
+
   return (
     <div style={{ display: 'grid', gap: 12 }}>
+      <div className="card">
+        <strong>Создать запись</strong>
+        <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+          <select
+            value={selectedService}
+            onChange={(e) => setSelectedService(e.target.value)}
+            style={inputStyle}
+          >
+            <option value="">Услуга</option>
+            {services.map((service) => (
+              <option key={service.id} value={service.id}>
+                {service.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={selectedBarber}
+            onChange={(e) => setSelectedBarber(e.target.value)}
+            style={inputStyle}
+          >
+            <option value="">Мастер</option>
+            {barbers.map((barber) => (
+              <option key={barber.id} value={barber.id}>
+                {barber.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="date"
+            value={createDate}
+            onChange={(e) => setCreateDate(e.target.value)}
+            style={inputStyle}
+          />
+          <input
+            type="time"
+            value={createTime}
+            onChange={(e) => setCreateTime(e.target.value)}
+            style={inputStyle}
+          />
+          <input
+            type="email"
+            placeholder="Email клиента (опционально)"
+            value={clientEmail}
+            onChange={(e) => setClientEmail(e.target.value)}
+            style={inputStyle}
+          />
+          <button className="button" onClick={createAppointment}>
+            Создать запись
+          </button>
+        </div>
+      </div>
+
       <strong>Управление статусами</strong>
-      {items.map((item) => (
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input
+          placeholder="Поиск по услуге или мастеру"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={inputStyle}
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          style={inputStyle}
+        >
+          <option value="all">Все</option>
+          <option value="pending">Ожидает</option>
+          <option value="confirmed">Подтверждено</option>
+          <option value="cancelled">Отменено</option>
+        </select>
+        <input
+          type="date"
+          value={filterDate}
+          onChange={(e) => setFilterDate(e.target.value)}
+          style={inputStyle}
+        />
+        <select
+          value={filterBarber}
+          onChange={(e) => setFilterBarber(e.target.value)}
+          style={inputStyle}
+        >
+          <option value="">Все мастера</option>
+          {barbers.map((barber) => (
+            <option key={barber.id} value={barber.id}>
+              {barber.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      {filteredItems.map((item) => (
         <div key={item.id} className="list-item">
           <div>
             <strong>{item.time} · {item.service}</strong>
             <p>Мастер: {item.barber}</p>
+            <p>Статус: {formatStatus(item.status)}</p>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button
@@ -282,6 +431,30 @@ function getToday() {
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function formatStatus(value: string) {
+  if (value === 'confirmed') return 'подтверждено';
+  if (value === 'cancelled') return 'отменено';
+  if (value === 'pending') return 'ожидает';
+  if (value === 'completed') return 'завершено';
+  return value;
+}
+
+function formatRpcError(message: string) {
+  if (message.includes('slot_taken')) {
+    return 'Слот уже занят, выберите другое время';
+  }
+  if (message.includes('outside_working_hours')) {
+    return 'Время вне рабочего графика';
+  }
+  if (message.includes('barber_unavailable')) {
+    return 'У мастера выходной или перерыв';
+  }
+  if (message.includes('service_not_found')) {
+    return 'Услуга не найдена';
+  }
+  return message;
 }
 
 const inputStyle: CSSProperties = {

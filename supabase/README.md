@@ -8,6 +8,7 @@
 - migrations/0006_notifications.sql — настройки уведомлений
 - migrations/0007_notification_templates.sql — шаблоны уведомлений + telegram для мастеров
 - migrations/0008_notification_logs.sql — логи доставки уведомлений
+- migrations/0009_appointment_validation.sql — проверка рабочего времени и перерывов при создании/переносе
 - seed.sql — демо‑данные для Istanbul
 
 Как применить (после инициализации проекта Supabase):

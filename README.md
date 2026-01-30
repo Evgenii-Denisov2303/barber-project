@@ -38,3 +38,4 @@ Notes:
 - Barber photos column added in supabase/migrations/0005_barber_photos.sql.
 - Storage: create public bucket `barber-photos` for uploads (docs/09_auth_setup.md).
 - Telegram/SMS notifications: settings table + edge function (supabase/migrations/0006_notifications.sql, 0007_notification_templates.sql) + delivery logs (0008_notification_logs.sql).
+- Appointment validation for working hours/time off: supabase/migrations/0009_appointment_validation.sql.

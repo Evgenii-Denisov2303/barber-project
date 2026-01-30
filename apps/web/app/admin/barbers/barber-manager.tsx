@@ -7,16 +7,24 @@ import { Avatar } from '../../components/Avatar';
 
 type BarberItem = {
   id: string;
+  userId: string;
   name: string;
   tag: string;
+  bio?: string | null;
   rating: number;
   photoUrl?: string | null;
+  phone?: string | null;
   telegramChatId?: string | null;
   telegramEnabled?: boolean;
 };
 
 type Props = {
   initial: BarberItem[];
+};
+
+type ServiceOption = {
+  id: string;
+  name: string;
 };
 
 type CropTarget =
@@ -48,6 +56,13 @@ export function BarberManager({ initial }: Props) {
     originY: number;
   } | null>(null);
   const [locationId, setLocationId] = useState<string | null>(null);
+  const [services, setServices] = useState<ServiceOption[]>([]);
+  const [barberServices, setBarberServices] = useState<Record<string, string[]>>({});
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editBio, setEditBio] = useState('');
+  const [editRating, setEditRating] = useState('');
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
@@ -67,24 +82,63 @@ export function BarberManager({ initial }: Props) {
     loadLocation();
   }, []);
 
+  const loadServices = async () => {
+    if (!supabaseBrowser) return;
+    const { data } = await supabaseBrowser
+      .from('services')
+      .select('id, name, is_active')
+      .eq('is_active', true)
+      .order('name');
+    if (!data) return;
+    setServices(
+      data.map((item) => ({
+        id: item.id,
+        name: item.name
+      }))
+    );
+  };
+
+  const loadBarberServices = async () => {
+    if (!supabaseBrowser) return;
+    const { data } = await supabaseBrowser
+      .from('barber_services')
+      .select('barber_id, service_id');
+    if (!data) return;
+    const map: Record<string, string[]> = {};
+    data.forEach((row) => {
+      if (!map[row.barber_id]) map[row.barber_id] = [];
+      map[row.barber_id].push(row.service_id);
+    });
+    setBarberServices(map);
+  };
+
+  useEffect(() => {
+    loadServices();
+    loadBarberServices();
+  }, []);
+
   const refresh = async () => {
     if (!supabaseBrowser) return;
     const { data } = await supabaseBrowser
       .from('barbers')
-      .select('id, rating, bio, photo_url, telegram_chat_id, telegram_enabled, users(full_name)')
+      .select('id, user_id, rating, bio, photo_url, telegram_chat_id, telegram_enabled, users(full_name, phone)')
       .eq('is_active', true);
     if (!data) return;
     setItems(
       data.map((item) => ({
         id: item.id,
+        userId: item.user_id,
         name: item.users?.full_name ?? 'Мастер',
         tag: item.bio ?? 'Барбер',
+        bio: item.bio ?? null,
         rating: item.rating ?? 4.7,
         photoUrl: item.photo_url,
+        phone: item.users?.phone ?? '',
         telegramChatId: item.telegram_chat_id ?? '',
         telegramEnabled: item.telegram_enabled ?? false
       }))
     );
+    await loadBarberServices();
   };
 
   useEffect(() => {
@@ -150,6 +204,100 @@ export function BarberManager({ initial }: Props) {
         item.id === barberId ? { ...item, [key]: value } : item
       )
     );
+  };
+
+  const toggleServiceForBarber = (barberId: string, serviceId: string) => {
+    setBarberServices((prev) => {
+      const current = new Set(prev[barberId] ?? []);
+      if (current.has(serviceId)) {
+        current.delete(serviceId);
+      } else {
+        current.add(serviceId);
+      }
+      return { ...prev, [barberId]: Array.from(current) };
+    });
+  };
+
+  const saveServicesForBarber = async (barberId: string) => {
+    if (!supabaseBrowser) return;
+    setStatus(null);
+    const selected = barberServices[barberId] ?? [];
+    const { error: deleteError } = await supabaseBrowser
+      .from('barber_services')
+      .delete()
+      .eq('barber_id', barberId);
+    if (deleteError) {
+      setStatus(deleteError.message);
+      return;
+    }
+    if (selected.length > 0) {
+      const { error: insertError } = await supabaseBrowser
+        .from('barber_services')
+        .insert(selected.map((serviceId) => ({
+          barber_id: barberId,
+          service_id: serviceId
+        })));
+      if (insertError) {
+        setStatus(insertError.message);
+        return;
+      }
+    }
+    setStatus('Услуги мастера сохранены');
+  };
+
+  const startEdit = (item: BarberItem) => {
+    setEditingId(item.id);
+    setEditName(item.name);
+    setEditPhone(item.phone ?? '');
+    setEditBio(item.bio ?? '');
+    setEditRating(item.rating.toFixed(1));
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName('');
+    setEditPhone('');
+    setEditBio('');
+    setEditRating('');
+  };
+
+  const saveEdit = async (item: BarberItem) => {
+    if (!supabaseBrowser) return;
+    setStatus(null);
+    if (!item.userId) {
+      setStatus('Не найден пользователь мастера');
+      return;
+    }
+    const ratingValue = Number(editRating);
+    if (!editName || !ratingValue) {
+      setStatus('Введите имя и рейтинг');
+      return;
+    }
+    const { error: userError } = await supabaseBrowser
+      .from('users')
+      .update({
+        full_name: editName,
+        phone: editPhone.trim() ? editPhone.trim() : null
+      })
+      .eq('id', item.userId);
+    if (userError) {
+      setStatus(userError.message);
+      return;
+    }
+    const { error: barberError } = await supabaseBrowser
+      .from('barbers')
+      .update({
+        bio: editBio.trim() ? editBio.trim() : null,
+        rating: ratingValue
+      })
+      .eq('id', item.id);
+    if (barberError) {
+      setStatus(barberError.message);
+      return;
+    }
+    setStatus('Данные мастера обновлены');
+    cancelEdit();
+    refresh();
   };
 
   const saveBarberTelegram = async (item: BarberItem) => {
@@ -467,6 +615,7 @@ export function BarberManager({ initial }: Props) {
               <div>
                 <strong>{item.name}</strong>
                 <p>{item.tag}</p>
+                {item.phone ? <p>{item.phone}</p> : null}
               </div>
             </div>
             <div style={{ display: 'grid', gap: 10 }}>
@@ -513,6 +662,82 @@ export function BarberManager({ initial }: Props) {
                   onClick={() => saveBarberTelegram(item)}
                 >
                   Сохранить Telegram
+                </button>
+              </div>
+              <div style={{ display: 'grid', gap: 6 }}>
+                <label style={{ fontSize: 12, color: '#8b6f5d' }}>
+                  Данные мастера
+                </label>
+                {editingId === item.id ? (
+                  <>
+                    <input
+                      style={inputStyle}
+                      placeholder="Имя"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                    />
+                    <input
+                      style={inputStyle}
+                      placeholder="Телефон"
+                      value={editPhone}
+                      onChange={(e) => setEditPhone(e.target.value)}
+                    />
+                    <input
+                      style={inputStyle}
+                      placeholder="Описание"
+                      value={editBio}
+                      onChange={(e) => setEditBio(e.target.value)}
+                    />
+                    <input
+                      style={inputStyle}
+                      placeholder="Рейтинг"
+                      value={editRating}
+                      onChange={(e) => setEditRating(e.target.value)}
+                    />
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        className="button secondary"
+                        onClick={() => saveEdit(item)}
+                      >
+                        Сохранить
+                      </button>
+                      <button className="button secondary" onClick={cancelEdit}>
+                        Отмена
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <button
+                    className="button secondary"
+                    style={{ alignSelf: 'flex-start' }}
+                    onClick={() => startEdit(item)}
+                  >
+                    Редактировать
+                  </button>
+                )}
+              </div>
+              <div style={{ display: 'grid', gap: 6 }}>
+                <label style={{ fontSize: 12, color: '#8b6f5d' }}>
+                  Услуги мастера
+                </label>
+                <div style={{ display: 'grid', gap: 6 }}>
+                  {services.map((service) => (
+                    <label key={service.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={(barberServices[item.id] ?? []).includes(service.id)}
+                        onChange={() => toggleServiceForBarber(item.id, service.id)}
+                      />
+                      <span>{service.name}</span>
+                    </label>
+                  ))}
+                </div>
+                <button
+                  className="button secondary"
+                  style={{ alignSelf: 'flex-start' }}
+                  onClick={() => saveServicesForBarber(item.id)}
+                >
+                  Сохранить услуги
                 </button>
               </div>
             </div>

@@ -7,5 +7,6 @@ export type RootStackParamList = {
   Slots: undefined;
   Confirm: undefined;
   MyBookings: undefined;
+  BookingDetail: { booking: import('../state/booking').BookingRecord };
   Profile: undefined;
 };

@@ -9,12 +9,14 @@ import { Screen } from '../components/Screen';
 import { Avatar } from '../components/Avatar';
 import { barbers, quickSlots, reviews, services } from '../data/demo';
 import { palette } from '../theme';
+import { useBooking } from '../state/booking';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 export function HomeScreen({ navigation }: Props) {
   const fade = useRef(new Animated.Value(0)).current;
   const shift = useRef(new Animated.Value(12)).current;
+  const { setService, setBarber } = useBooking();
 
   useEffect(() => {
     Animated.parallel([
@@ -50,6 +52,22 @@ export function HomeScreen({ navigation }: Props) {
             label="Записаться"
             onPress={() => navigation.navigate('Services')}
           />
+          <View style={{ marginTop: 10 }}>
+            <PrimaryButton
+              label="Быстрая запись"
+              variant="secondary"
+              onPress={() => {
+                const firstService = services[0];
+                if (firstService) {
+                  setService(firstService.id, firstService.name);
+                  setBarber('first', 'Первый свободный');
+                  navigation.navigate('Calendar');
+                } else {
+                  navigation.navigate('Services');
+                }
+              }}
+            />
+          </View>
         </View>
 
         <Section title="Быстрая запись" actionText="Все слоты">

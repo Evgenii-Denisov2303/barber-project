@@ -1,5 +1,8 @@
 import { SettingsManager } from './settings-manager';
 import { RoleManager } from './role-manager';
+import { BarberScheduleManager } from './barber-schedule-manager';
+import { TimeOffManager } from './timeoff-manager';
+import { LocationManager } from './location-manager';
 
 const hours = [
   { day: 'Понедельник', time: '10:00 – 22:00' },
@@ -28,6 +31,15 @@ export default function SettingsPage() {
       </div>
       <div style={{ marginTop: 20 }}>
         <RoleManager />
+      </div>
+      <div style={{ marginTop: 20 }}>
+        <BarberScheduleManager />
+      </div>
+      <div style={{ marginTop: 20 }}>
+        <TimeOffManager />
+      </div>
+      <div style={{ marginTop: 20 }}>
+        <LocationManager />
       </div>
     </section>
   );

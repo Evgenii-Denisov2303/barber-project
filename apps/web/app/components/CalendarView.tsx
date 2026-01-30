@@ -624,6 +624,12 @@ function formatRpcError(message: string) {
   if (message.includes('appointment_not_found')) {
     return 'Запись не найдена';
   }
+  if (message.includes('outside_working_hours')) {
+    return 'Время вне рабочего графика';
+  }
+  if (message.includes('barber_unavailable')) {
+    return 'У мастера выходной или перерыв';
+  }
   return message;
 }
 

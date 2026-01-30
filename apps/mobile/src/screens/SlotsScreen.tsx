@@ -8,16 +8,20 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { palette } from '../theme';
 import { barbers, getSlotsForDate } from '../data/demo';
 import { useBooking } from '../state/booking';
-import { listAvailability } from '../api';
+import { listAvailability, listBarbers } from '../api';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Slots'>;
 
 export function SlotsScreen({ navigation }: Props) {
-  const { draft, setSlot } = useBooking();
+  const { draft, setSlot, setBarber, rescheduleTarget } = useBooking();
   const barber =
     barbers.find((item) => item.id === draft.barberId) ??
     (draft.barberName ? { name: draft.barberName } : undefined);
   const [slots, setSlots] = useState<string[]>([]);
+  const [firstOptions, setFirstOptions] = useState<
+    { time: string; barberId: string; barberName: string }[]
+  >([]);
+  const isFirstAvailable = draft.barberId === 'first';
 
   useEffect(() => {
     const loadSlots = async () => {
@@ -25,23 +29,70 @@ export function SlotsScreen({ navigation }: Props) {
         setSlots(getSlotsForDate(draft.barberId));
         return;
       }
-      const data = await listAvailability(
-        draft.date,
-        draft.serviceId,
-        draft.barberId
-      );
+      if (isFirstAvailable) {
+        const candidates = await listBarbers(draft.serviceId);
+        const results = await Promise.all(
+          candidates.map(async (candidate) => {
+            const list = await listAvailability(
+              draft.date!,
+              draft.serviceId!,
+              candidate.id
+            );
+            if (!list.length) return null;
+            return {
+              time: list[0],
+              barberId: candidate.id,
+              barberName: candidate.name
+            };
+          })
+        );
+        const available = results.filter(Boolean) as {
+          time: string;
+          barberId: string;
+          barberName: string;
+        }[];
+        available.sort((a, b) => a.time.localeCompare(b.time));
+        setFirstOptions(available);
+        setSlots([]);
+        return;
+      }
+      setFirstOptions([]);
+      const data = await listAvailability(draft.date, draft.serviceId, draft.barberId);
       setSlots(data);
     };
     loadSlots();
-  }, [draft.date, draft.serviceId, draft.barberId]);
+  }, [draft.date, draft.serviceId, draft.barberId, isFirstAvailable]);
 
   return (
     <Screen>
-      <Text style={styles.title}>Выберите время</Text>
+      <Text style={styles.title}>
+        {rescheduleTarget ? 'Выберите новое время' : 'Выберите время'}
+      </Text>
       <Text style={styles.subtitle}>
         {draft.date ?? 'Дата не выбрана'} · {barber?.name ?? 'Мастер не выбран'}
       </Text>
-      {slots.length === 0 ? (
+      {isFirstAvailable ? (
+        firstOptions.length === 0 ? (
+          <Text style={styles.empty}>Нет свободных мастеров на выбранную дату.</Text>
+        ) : (
+          <View style={styles.grid}>
+            {firstOptions.map((option) => (
+              <Pressable
+                key={`${option.barberId}-${option.time}`}
+                style={styles.slot}
+                onPress={() => {
+                  setBarber(option.barberId, option.barberName);
+                  setSlot(option.time);
+                }}
+              >
+                <Text style={styles.slotText}>
+                  {option.time} · {option.barberName}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )
+      ) : slots.length === 0 ? (
         <Text style={styles.empty}>Нет свободных слотов на выбранную дату.</Text>
       ) : (
         <View style={styles.grid}>

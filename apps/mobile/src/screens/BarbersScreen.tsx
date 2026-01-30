@@ -19,11 +19,11 @@ export function BarbersScreen({ navigation }: Props) {
 
   useEffect(() => {
     const loadBarbers = async () => {
-      const data = await listBarbers();
+      const data = await listBarbers(draft.serviceId);
       setBarbers(data);
     };
     loadBarbers();
-  }, []);
+  }, [draft.serviceId]);
 
   return (
     <Screen>
@@ -34,6 +34,26 @@ export function BarbersScreen({ navigation }: Props) {
         </Text>
       ) : null}
       <View style={styles.list}>
+        {draft.serviceId ? (
+          <Pressable
+            style={[styles.item, styles.firstAvailable]}
+            onPress={() => {
+              setBarber('first', 'Первый свободный');
+              navigation.navigate('Calendar');
+            }}
+          >
+            <View style={styles.left}>
+              <Avatar name="ПФ" size={42} />
+              <View style={{ marginLeft: 12 }}>
+                <Text style={styles.name}>Первый свободный мастер</Text>
+                <Text style={styles.tag}>Подберём ближайшее время</Text>
+              </View>
+            </View>
+            <View style={styles.ratingChip}>
+              <Text style={styles.ratingText}>★</Text>
+            </View>
+          </Pressable>
+        ) : null}
         {barbers.map((barber) => (
           <Pressable
             key={barber.id}
@@ -109,6 +129,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999
+  },
+  firstAvailable: {
+    borderStyle: 'dashed'
   },
   ratingText: {
     fontSize: 12,

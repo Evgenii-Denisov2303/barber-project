@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { barbers, services } from '../data/demo';
 
 export type BookingDraft = {
@@ -12,7 +13,9 @@ export type BookingDraft = {
 
 export type BookingRecord = {
   id: string;
+  serviceId?: string;
   serviceName: string;
+  barberId?: string;
   barberName: string;
   date: string;
   time: string;
@@ -29,13 +32,47 @@ type BookingContextValue = {
   resetDraft: () => void;
   createBooking: (id?: string) => BookingRecord | null;
   cancelBooking: (id: string) => void;
+  rescheduleTarget: BookingRecord | null;
+  startReschedule: (record: BookingRecord) => void;
+  clearReschedule: () => void;
+  applyReschedule: (id: string, date: string, time: string) => void;
 };
 
 const BookingContext = createContext<BookingContextValue | null>(null);
+const STORAGE_KEY = 'istanbul_bookings';
 
 export function BookingProvider({ children }: { children: React.ReactNode }) {
   const [draft, setDraft] = useState<BookingDraft>({});
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
+  const [rescheduleTarget, setRescheduleTarget] = useState<BookingRecord | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const raw = await AsyncStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as BookingRecord[];
+          if (Array.isArray(parsed)) {
+            setBookings(parsed);
+          }
+        }
+      } catch (_) {
+        // ignore storage errors
+      }
+    };
+    load();
+  }, []);
+
+  useEffect(() => {
+    const save = async () => {
+      try {
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(bookings));
+      } catch (_) {
+        // ignore storage errors
+      }
+    };
+    save();
+  }, [bookings]);
 
   const value = useMemo<BookingContextValue>(
     () => ({
@@ -61,7 +98,9 @@ export function BookingProvider({ children }: { children: React.ReactNode }) {
         if (!serviceName || !barberName) return null;
         const record: BookingRecord = {
           id: id ?? String(Date.now()),
+          serviceId: draft.serviceId,
           serviceName,
+          barberId: draft.barberId,
           barberName,
           date: draft.date,
           time: draft.slot,
@@ -77,9 +116,32 @@ export function BookingProvider({ children }: { children: React.ReactNode }) {
             item.id === id ? { ...item, status: 'cancelled' } : item
           )
         );
+      },
+      rescheduleTarget,
+      startReschedule: (record) => {
+        setRescheduleTarget(record);
+        setDraft({
+          serviceId: record.serviceId,
+          serviceName: record.serviceName,
+          barberId: record.barberId,
+          barberName: record.barberName,
+          date: record.date,
+          slot: record.time
+        });
+      },
+      clearReschedule: () => {
+        setRescheduleTarget(null);
+        setDraft({});
+      },
+      applyReschedule: (id, date, time) => {
+        setBookings((prev) =>
+          prev.map((item) =>
+            item.id === id ? { ...item, date, time, status: 'pending' } : item
+          )
+        );
       }
     }),
-    [draft, bookings]
+    [draft, bookings, rescheduleTarget]
   );
 
   return (

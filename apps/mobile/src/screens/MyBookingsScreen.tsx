@@ -1,16 +1,19 @@
 import React, { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { Screen } from '../components/Screen';
 import { palette } from '../theme';
 import { useBooking } from '../state/booking';
-import { cancelAppointment, listMyAppointments } from '../api';
+import { listMyAppointments } from '../api';
 import { useAuth } from '../state/auth';
+import type { RootStackParamList } from '../navigation/types';
 
 export function MyBookingsScreen() {
-  const { bookings, cancelBooking } = useBooking();
+  const { bookings, clearReschedule } = useBooking();
   const { session, signOut } = useAuth();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [remoteBookings, setRemoteBookings] = useState(bookings);
 
   const loadRemote = useCallback(async () => {
@@ -18,27 +21,30 @@ export function MyBookingsScreen() {
     const data = await listMyAppointments();
       if (data) {
         setRemoteBookings(
-          data.map((item) => ({
-            id: item.id,
-            serviceName: item.serviceName,
-            barberName: item.barberName,
-            date: item.date,
-            time: item.time,
-            status:
-              item.status === 'cancelled'
-                ? 'cancelled'
-                : item.status === 'pending'
-                  ? 'pending'
-                  : 'confirmed'
-          }))
-        );
+        data.map((item) => ({
+          id: item.id,
+          serviceId: item.serviceId,
+          barberId: item.barberId,
+          serviceName: item.serviceName,
+          barberName: item.barberName,
+          date: item.date,
+          time: item.time,
+          status:
+            item.status === 'cancelled'
+              ? 'cancelled'
+              : item.status === 'pending'
+                ? 'pending'
+                : 'confirmed'
+        }))
+      );
       }
   }, [session]);
 
   useFocusEffect(
     useCallback(() => {
       loadRemote();
-    }, [loadRemote])
+      clearReschedule();
+    }, [loadRemote, clearReschedule])
   );
 
   const list = session ? remoteBookings : bookings;
@@ -58,7 +64,11 @@ export function MyBookingsScreen() {
       ) : (
         <View style={styles.list}>
           {list.map((booking) => (
-            <View key={booking.id} style={styles.card}>
+            <Pressable
+              key={booking.id}
+              style={styles.card}
+              onPress={() => navigation.navigate('BookingDetail', { booking })}
+            >
               <View>
                 <Text style={styles.cardTitle}>{booking.serviceName}</Text>
                 <Text style={styles.cardMeta}>
@@ -69,23 +79,8 @@ export function MyBookingsScreen() {
                   Статус: {booking.status === 'pending' ? 'ожидает' : booking.status === 'confirmed' ? 'подтверждено' : 'отменено'}
                 </Text>
               </View>
-              {booking.status !== 'cancelled' ? (
-                <Pressable
-                  style={styles.cancelButton}
-                  onPress={async () => {
-                    if (session) {
-                      await cancelAppointment(booking.id);
-                      loadRemote();
-                    }
-                    cancelBooking(booking.id);
-                  }}
-                >
-                  <Text style={styles.cancelText}>Отменить</Text>
-                </Pressable>
-              ) : (
-                <Text style={styles.cancelled}>Отменено</Text>
-              )}
-            </View>
+              <Text style={styles.detail}>Подробнее</Text>
+            </Pressable>
           ))}
         </View>
       )}
@@ -144,19 +139,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: palette.muted
   },
-  cancelButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: palette.accent
-  },
-  cancelText: {
+  detail: {
     fontSize: 12,
     color: palette.accent
-  },
-  cancelled: {
-    fontSize: 12,
-    color: palette.muted
   }
 });

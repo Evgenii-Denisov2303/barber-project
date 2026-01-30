@@ -23,7 +23,7 @@ function formatDateValue(date: Date) {
 type Props = NativeStackScreenProps<RootStackParamList, 'Calendar'>;
 
 export function CalendarScreen({ navigation }: Props) {
-  const { setDate } = useBooking();
+  const { setDate, rescheduleTarget } = useBooking();
   const days = useMemo(() => {
     const list: { label: string; value: string }[] = [];
     const now = new Date();
@@ -40,7 +40,9 @@ export function CalendarScreen({ navigation }: Props) {
 
   return (
     <Screen>
-      <Text style={styles.title}>Выберите дату</Text>
+      <Text style={styles.title}>
+        {rescheduleTarget ? 'Выберите новую дату' : 'Выберите дату'}
+      </Text>
       <View style={styles.list}>
         {days.map((day) => (
           <Pressable

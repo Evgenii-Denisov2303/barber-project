@@ -21,6 +21,10 @@ export function ServiceManager({ initial }: Props) {
   const [name, setName] = useState('');
   const [durationMin, setDurationMin] = useState('');
   const [price, setPrice] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDuration, setEditDuration] = useState('');
+  const [editPrice, setEditPrice] = useState('');
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
@@ -84,6 +88,42 @@ export function ServiceManager({ initial }: Props) {
     if (!error) refresh();
   };
 
+  const startEdit = (service: ServiceItem) => {
+    setEditingId(service.id);
+    setEditName(service.name);
+    setEditDuration(String(service.durationMin));
+    setEditPrice(String(service.price));
+  };
+
+  const saveEdit = async () => {
+    if (!supabaseBrowser || !editingId) return;
+    setStatus(null);
+    const durationValue = Number(editDuration);
+    const priceValue = Number(editPrice);
+    if (!editName || !durationValue || !priceValue) {
+      setStatus('Заполните все поля');
+      return;
+    }
+    const { error } = await supabaseBrowser
+      .from('services')
+      .update({
+        name: editName,
+        duration_min: durationValue,
+        price: priceValue
+      })
+      .eq('id', editingId);
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
+    setEditingId(null);
+    setEditName('');
+    setEditDuration('');
+    setEditPrice('');
+    setStatus('Услуга обновлена');
+    refresh();
+  };
+
   if (!supabaseBrowser) {
     return <AuthPanel />;
   }
@@ -122,18 +162,58 @@ export function ServiceManager({ initial }: Props) {
         <strong>Управление</strong>
         {items.map((item) => (
           <div key={item.id} className="list-item">
-            <div>
-              <strong>{item.name}</strong>
-              <p>
-                {item.durationMin} мин · {item.price} ₽
-              </p>
-            </div>
-            <button
-              className="button secondary"
-              onClick={() => toggleService(item)}
-            >
-              {item.isActive ? 'Скрыть' : 'Активировать'}
-            </button>
+            {editingId === item.id ? (
+              <div style={{ display: 'grid', gap: 6, flex: 1 }}>
+                <input
+                  style={inputStyle}
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                />
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <input
+                    style={inputStyle}
+                    value={editDuration}
+                    onChange={(e) => setEditDuration(e.target.value)}
+                  />
+                  <input
+                    style={inputStyle}
+                    value={editPrice}
+                    onChange={(e) => setEditPrice(e.target.value)}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="button secondary" onClick={saveEdit}>
+                    Сохранить
+                  </button>
+                  <button className="button secondary" onClick={() => setEditingId(null)}>
+                    Отмена
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <strong>{item.name}</strong>
+                  <p>
+                    {item.durationMin} мин · {item.price} ₽
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    className="button secondary"
+                    onClick={() => startEdit(item)}
+                  >
+                    Редактировать
+                  </button>
+                  <button
+                    className="button secondary"
+                    onClick={() => toggleService(item)}
+                  >
+                    {item.isActive ? 'Скрыть' : 'Активировать'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         ))}
       </div>

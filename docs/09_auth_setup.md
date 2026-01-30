@@ -9,6 +9,7 @@
 - 0006_notifications.sql
 - 0007_notification_templates.sql
 - 0008_notification_logs.sql
+- 0009_appointment_validation.sql
 
 2) Включить Email/Password в Supabase Auth.
 
